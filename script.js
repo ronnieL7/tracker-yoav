@@ -2,22 +2,27 @@
 // 1. FIREBASE SETUP
 // ===================================
 
-// Your web app's Firebase configuration (pasted from Firebase Console)
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyArcbWyj9mDznmL1Dyb1CAqDAcM3jbhXpo",
-  authDomain: "noa-s-tracker.firebaseapp.com",
-  projectId: "noa-s-tracker",
-  storageBucket: "noa-s-tracker.firebasestorage.app",
-  messagingSenderId: "759205644605",
-  appId: "1:759205644605:web:16bbc5e3862db566c55d54",
-  measurementId: "G-5S36FG9GLW"
+  apiKey: "AIzaSyBxYigfuPD1t9moYTlLza82PogdamM3Vww",
+  authDomain: "yoav-s-tracker.firebaseapp.com",
+  projectId: "yoav-s-tracker",
+  storageBucket: "yoav-s-tracker.firebasestorage.app",
+  messagingSenderId: "243510835061",
+  appId: "1:243510835061:web:9124dbc6b0462c55c9453c",
+  measurementId: "G-QEY215N08Q"
 };
 
-// Initialize Firebase and Firestore (using the global 'firebase' object from the compat scripts)
-const app = firebase.initializeApp(firebaseConfig);
-const db = app.firestore();
-// We use a fixed document ID to ensure all devices access the same tracker data.
-const trackerRef = db.collection("trackers").doc("NoaLaviTracker"); 
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
 // ===================================
 // 2. DOM ELEMENTS AND INITIAL STATE
