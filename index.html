@@ -135,12 +135,19 @@
             margin-bottom: 0; 
         }
         
-        /* Image/Icon Styling for Stats - Doubled in size */
+        /* Image/Icon Styling for Stats - BASE SIZE (15% reduction for Star/Streak) */
         .stat-icon img {
-            width: 4.8rem; /* DOUBLED from 2.4rem */
-            height: 4.8rem; /* DOUBLED from 2.4rem */
+            width: 4.08rem; /* 4.8rem * 0.85 = 4.08rem */
+            height: 4.08rem; /* 4.8rem * 0.85 = 4.08rem */
             object-fit: contain; /* Prevents stretching */
         }
+        
+        /* Specific rule for Unicorn (2nd child) - Increased by (25% + 10%) */
+        .stats-grid .stat-card:nth-child(2) .stat-icon img {
+            width: 6.6rem; /* 6.0rem * 1.10 = 6.6rem */
+            height: 6.6rem; /* 6.0rem * 1.10 = 6.6rem */
+        }
+
 
         /* Calendar Header (Month Navigation) */
         .calendar-header {
@@ -354,6 +361,17 @@
         #bonus-stars-picker .fa-star.active {
             color: var(--yellow-star);
         }
+        
+        /* Style for the clear button (Now Grey) */
+        #clear-status-btn {
+            background-color: #cbd5e1; /* Light Grey */
+            color: #1f2937; /* Dark text for contrast */
+            margin-top: 1.5rem; /* Add extra spacing */
+        }
+        #clear-status-btn:hover {
+            background-color: #94a3b8; /* Slightly darker grey on hover */
+        }
+
         .v-text {
             text-align: center;
             margin-top: 2rem;
@@ -445,6 +463,8 @@
             <button class="btn-status partial" data-status="partial">Partial (0.5 Stars)</button>
             <button class="btn-status nothing-done" data-status="nothing-done">Nothing Done (0 Stars)</button>
             <button class="btn-status none" data-status="none">No Homework (0 Stars)</button>
+            
+            <button id="clear-status-btn" class="btn-status">Clear Status / Reset Week</button>
         </div>
     </div>
 
@@ -453,13 +473,13 @@
   // IMPORTANT: REPLACE THESE PLACEHOLDERS WITH YOUR NEW FIREBASE PROJECT CONFIG
   // ===========================================
   window.__firebase_config = {
-    apiKey: "AIzaSyDwAbRKpLty13xweR12LTwnTeJd7NaNwrg",
-    authDomain: "yoav-tracker.firebaseapp.com",
-    projectId: "yoav-tracker",
-    storageBucket: "yoav-tracker.firebasestorage.app",
-    messagingSenderId: "1081711810511",
-    appId: "1:1081711810511:web:f41db5273f1d96359ca4ba",
-    measurementId: "G-WCX1KY9Y99"
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID",
+    measurementId: "YOUR_MEASUREMENT_ID"
   };
   window.__app_id = "yoav-tracker"; // New unique app ID for Yoav
 </script>
@@ -506,13 +526,14 @@
         const overlay = document.getElementById('overlay');
         const overlayWeekTitle = document.getElementById('overlay-week-title');
         const closeOverlayBtn = document.getElementById('close-overlay-btn');
-        const statusButtons = document.querySelectorAll('.btn-status:not(#confirm-bonus-btn)'); 
+        const statusButtons = document.querySelectorAll('.btn-status:not(#confirm-bonus-btn, #clear-status-btn)'); // EXCLUDE new clear button
         const starsCountElem = document.getElementById('stars-count');
         const unicornsCountElem = document.getElementById('unicorns-count');
         const streakCountElem = document.getElementById('streak-count');
         const bonusStarsContainer = document.getElementById('bonus-stars-container');
         const bonusStarsPicker = document.getElementById('bonus-stars-picker');
         const confirmBonusBtn = document.getElementById('confirm-bonus-btn');
+        const clearStatusBtn = document.getElementById('clear-status-btn'); // NEW ELEMENT
 
         // ===================================
         // 3. CORE FUNCTIONS (LOAD/SAVE/RENDER)
@@ -736,6 +757,9 @@
             statusButtons.forEach(button => button.classList.remove('active'));
             bonusStarsContainer.style.display = 'none';
             document.querySelectorAll('#bonus-stars-picker .fas.fa-star').forEach(s => s.classList.remove('active'));
+            
+            // Ensure Clear button is visible
+            clearStatusBtn.style.display = 'block';
 
             const weekData = data[weekStart];
             if (weekData) {
@@ -764,6 +788,26 @@
         // ===================================
         // 4. EVENT LISTENERS
         // ===================================
+        
+        // Listener for the NEW Clear Button
+        clearStatusBtn.addEventListener('click', () => {
+            if (currentWeekData.weekStart) {
+                // Delete the entry for the current week from the data object
+                delete data[currentWeekData.weekStart];
+                
+                // Save the updated data (which now lacks the week entry)
+                saveData();
+                
+                // Force local re-render and stat update for immediate visual feedback
+                // This addresses the reported bug where the listener delays the update for deletes.
+                updateStats(); 
+                renderCalendar();
+
+                // Close the overlay
+                overlay.classList.remove('visible');
+            }
+        });
+
 
         statusButtons.forEach(button => {
             button.addEventListener('click', () => {
@@ -854,7 +898,6 @@
     setLogLevel('Debug');
     
     // 2. Use one shared document (no auth)
-    // NOTE: This document reference is NOT in your old project, ensuring complete separation.
     trackerRef = doc(db, 'shared_tracker_yoav', 'weeks');
     isFirebaseReady = true;
 
