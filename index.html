@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weekly Homework Tracker - Yoav</title>
+    <title>Weekly Training Tracker - Yoav</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Atma:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -18,7 +18,7 @@
             --green: #48c48a;
             --red: #f16a6a;
             --yellow-star: #ffc400;
-            --blue: #4299e1; /* New Blue for 'No Homework' */
+            --blue: #4299e1; /* New Blue for 'No Training' */
         }
 
         body {
@@ -332,7 +332,7 @@
         .btn-status.nothing-done { background-color: var(--red); }
         .btn-status.nothing-done.active { border-color: #b91c1c; }
         
-        /* UPDATED: No Homework button color to BLUE */
+        /* UPDATED: No Training button color to BLUE */
         .btn-status.none { background-color: var(--blue); }
         .btn-status.none.active { border-color: #2563eb; } /* Darker blue border for active state */
         
@@ -384,7 +384,7 @@
 
     <div class="container">
         <div class="header">
-            <h1>Weekly Homework Tracker</h1>
+            <h1>Weekly Training Tracker</h1>
             
             <div class="profile-pic-container">
                 <img 
@@ -462,7 +462,7 @@
             
             <button class="btn-status partial" data-status="partial">Partial (0.5 Stars)</button>
             <button class="btn-status nothing-done" data-status="nothing-done">Nothing Done (0 Stars)</button>
-            <button class="btn-status none" data-status="none">No Homework (0 Stars)</button>
+            <button class="btn-status none" data-status="none">No Training (0 Stars)</button>
             
             <button id="clear-status-btn" class="btn-status">Clear Status / Reset Week</button>
         </div>
@@ -655,7 +655,7 @@
                     } else if (status === 'nothing-done') {
                         streak_current = 0; // Streak broken
                     }
-                    // 'none' status (No Homework) maintains streak, so no action needed on streak_current
+                    // 'none' status (No Training) maintains streak, so no action needed on streak_current
                 } else {
                     // Stop streak calculation once we hit the current week or a future week
                     if (status === 'complete') {
