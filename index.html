@@ -913,8 +913,8 @@
 
                 bonusStarsContainer.style.display = 'none'; 
 
-                // Ensure the week object exists, preserving any assignmentText
-                data[currentWeekData.weekStart] = data[currentWeekData.weekStart] || { assignmentText: undefined };
+                // FIX: Initialize with an empty object {} to avoid passing 'undefined' to Firestore.
+                data[currentWeekData.weekStart] = data[currentWeekData.weekStart] || {};
                 
                 if (isAlreadyActive) {
                     // Clicking an active button removes the status (but keeps assignmentText if present)
@@ -944,8 +944,8 @@
             if (currentWeekData.weekStart) {
                 const selectedBonusStarsCount = document.querySelectorAll('#bonus-stars-picker .fas.fa-star.active').length;
                 
-                // Ensure the week object exists, preserving any assignmentText
-                data[currentWeekData.weekStart] = data[currentWeekData.weekStart] || { assignmentText: undefined };
+                // FIX: Initialize with an empty object {} to avoid passing 'undefined' to Firestore.
+                data[currentWeekData.weekStart] = data[currentWeekData.weekStart] || {};
                 
                 // Set the status and the selected bonus stars
                 data[currentWeekData.weekStart].status = 'complete';
