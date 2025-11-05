@@ -378,6 +378,17 @@
             color: #ccc;
             font-size: 0.7rem;
         }
+        
+        /* NEW STYLING FOR TEXTAREA */
+        #assignment-text {
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 0.5rem; 
+            margin-bottom: 1rem; 
+            font-family: 'Inter', sans-serif; 
+            resize: vertical;
+        }
     </style>
 </head>
 <body>
@@ -441,6 +452,25 @@
             </div>
 
         <p class="v-text">v3.0.0</p>
+    </div>
+
+    <div class="overlay" id="selection-overlay">
+        <div class="overlay-content" style="max-width: 300px;">
+            <button class="close-btn" id="close-selection-btn"><i class="fas fa-times"></i></button>
+            <h2 id="selection-week-title" class="text-xl font-bold mb-4"></h2>
+            <p class="text-md font-semibold mb-4 text-gray-700">Choose an action for this week:</p>
+            <button class="btn-status" id="add-assignments-btn" style="background-color: var(--purple);">Add Assignments</button>
+            <button class="btn-status" id="log-results-btn" style="background-color: var(--orange);">Log Results</button>
+        </div>
+    </div>
+
+    <div class="overlay" id="assignment-overlay">
+        <div class="overlay-content" style="max-width: 500px;">
+            <button class="close-btn" id="close-assignment-btn"><i class="fas fa-times"></i></button>
+            <h2 id="assignment-week-title" class="text-xl font-bold mb-4"></h2>
+            <textarea id="assignment-text" placeholder="Enter assignments or notes here..." rows="10"></textarea>
+            <button id="save-assignment-btn" class="btn-status" style="background-color: var(--green);">Save Assignments</button>
+        </div>
     </div>
 
     <div class="overlay" id="overlay">
@@ -523,40 +553,56 @@
         const currentMonthYear = document.getElementById('current-month-year');
         const prevMonthBtn = document.getElementById('prev-month-btn');
         const nextMonthBtn = document.getElementById('next-month-btn');
-        const overlay = document.getElementById('overlay');
+        const overlay = document.getElementById('overlay'); // Results Overlay
         const overlayWeekTitle = document.getElementById('overlay-week-title');
         const closeOverlayBtn = document.getElementById('close-overlay-btn');
-        const statusButtons = document.querySelectorAll('.btn-status:not(#confirm-bonus-btn, #clear-status-btn)'); // EXCLUDE new clear button
+        const statusButtons = document.querySelectorAll('.btn-status:not(#confirm-bonus-btn, #clear-status-btn, #add-assignments-btn, #log-results-btn)'); 
         const starsCountElem = document.getElementById('stars-count');
         const unicornsCountElem = document.getElementById('unicorns-count');
         const streakCountElem = document.getElementById('streak-count');
         const bonusStarsContainer = document.getElementById('bonus-stars-container');
         const bonusStarsPicker = document.getElementById('bonus-stars-picker');
         const confirmBonusBtn = document.getElementById('confirm-bonus-btn');
-        const clearStatusBtn = document.getElementById('clear-status-btn'); // NEW ELEMENT
+        const clearStatusBtn = document.getElementById('clear-status-btn'); 
+        
+        // NEW ELEMENTS FOR MULTI-SCREEN
+        const selectionOverlay = document.getElementById('selection-overlay');
+        const selectionWeekTitle = document.getElementById('selection-week-title');
+        const addAssignmentsBtn = document.getElementById('add-assignments-btn');
+        const logResultsBtn = document.getElementById('log-results-btn');
+        const closeSelectionBtn = document.getElementById('close-selection-btn');
+
+        const assignmentOverlay = document.getElementById('assignment-overlay');
+        const assignmentWeekTitle = document.getElementById('assignment-week-title');
+        const assignmentTextarea = document.getElementById('assignment-text');
+        const saveAssignmentBtn = document.getElementById('save-assignment-btn');
+        const closeAssignmentBtn = document.getElementById('close-assignment-btn');
+
 
         // ===================================
         // 3. CORE FUNCTIONS (LOAD/SAVE/RENDER)
         // ===================================
 
+        function closeAllOverlays() {
+            overlay.classList.remove('visible');
+            selectionOverlay.classList.remove('visible');
+            assignmentOverlay.classList.remove('visible');
+        }
+
         /**
          * Listens to the Firestore document in real-time and updates the UI.
-         * This replaces the old loadData() function.
          */
         function listenForData() {
             if (!isFirebaseReady || !trackerRef) return;
 
-            // Use onSnapshot for real-time updates on the single document reference (trackerRef)
             onSnapshot(trackerRef, (docSnap) => {
                 if (docSnap.exists()) {
-                    // The document stores an object under the 'weeks' key
                     data = docSnap.data().weeks || {}; 
                     console.log("Real-time data update received.");
                 } else {
                     console.log("Tracker document does not exist, initializing local data.");
                     data = {};
                 }
-                // Always re-render and update stats upon receiving data
                 updateStats(); 
                 renderCalendar();
             }, (error) => {
@@ -567,26 +613,21 @@
 
         /**
          * Saves the entire 'data' object to Firestore.
-         * Note: The UI update is now handled by the onSnapshot listener above.
          */
         async function saveData() {
             if (!isFirebaseReady) {
                 console.warn("Firebase not initialized. Data cannot be saved.");
-                updateStats(); // Fallback: Update UI locally if persistence is disabled
-                renderCalendar(); // Fallback: Update UI locally if persistence is disabled
+                updateStats(); 
+                renderCalendar(); 
                 return;
             }
 
             try {
-                // Use .set() with { merge: true } to save the entire 'data' object under the 'weeks' field
-                // If the document doesn't exist, it will be created.
                 await setDoc(trackerRef, { weeks: data }, { merge: true });
                 console.log("Data saved to Firestore successfully (via setDoc).");
             } catch (error) {
                 console.error("Error saving data to Firestore:", error);
             }
-            // IMPORTANT: The calls to updateStats() and renderCalendar() have been removed here.
-            // They are now triggered automatically by the 'onSnapshot' listener (listenForData).
         }
 
 
@@ -597,20 +638,15 @@
                 star.classList.add('fas', 'fa-star');
                 star.dataset.value = i;
                 
-                // FIX: Updated logic to allow unchecking the currently selected star (setting bonus to 0)
                 star.addEventListener('click', () => {
                     const value = parseInt(star.dataset.value);
                     const allStars = document.querySelectorAll('#bonus-stars-picker .fas.fa-star');
                     
-                    // Get the current number of active stars
                     const currentlyActiveCount = Array.from(allStars).filter(s => s.classList.contains('active')).length;
 
-                    // If the clicked star's value is the current active count, it means the user is clicking
-                    // to clear the rating (set to 0).
                     if (value === currentlyActiveCount) {
                         allStars.forEach(s => s.classList.remove('active'));
                     } else {
-                        // Otherwise, set the active stars up to the clicked value (standard rating logic).
                         allStars.forEach(s => s.classList.remove('active'));
                         let currentStar = star;
                         while(currentStar) {
@@ -629,11 +665,9 @@
         function updateStats() {
             let stars_total = 0;
             let streak_current = 0;
-            // Variable to track if the current day has passed 'today' for the streak calculation
             let today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            // Get all week start keys and sort them chronologically
             const sortedWeekKeys = Object.keys(data).sort((a, b) => new Date(a) - new Date(b));
 
             sortedWeekKeys.forEach(weekStartString => {
@@ -644,7 +678,6 @@
                 const week = data[weekStartString];
                 const status = week.status;
                 
-                // Only count weeks that have passed or are the current week (to prevent forecasting streak)
                 if (weekEndDate.getTime() < today.getTime()) {
                     if (status === 'complete') {
                         stars_total += 1 + (week.bonusStars || 0);
@@ -653,19 +686,15 @@
                         stars_total += 0.5;
                         streak_current++;
                     } else if (status === 'nothing-done') {
-                        streak_current = 0; // Streak broken
+                        streak_current = 0; 
                     }
-                    // 'none' status (No Training) maintains streak, so no action needed on streak_current
                 } else {
-                    // Stop streak calculation once we hit the current week or a future week
                     if (status === 'complete') {
                         stars_total += 1 + (week.bonusStars || 0);
-                        // Do not increase streak for the current or future incomplete week
                     } else if (status === 'partial') {
                         stars_total += 0.5;
-                        // Do not increase streak
                     } else if (status === 'nothing-done') {
-                        streak_current = 0; // Streak broken on the current incomplete week
+                        streak_current = 0; 
                     }
                 }
             });
@@ -676,82 +705,46 @@
             unicornsCountElem.textContent = unicorns;
             streakCountElem.textContent = streak_current;
         }
-
-        function renderCalendar() {
-            console.log("Rendering calendar structure..."); // Debug log
-            calendar.innerHTML = '';
+        
+        // NEW: Function to display the Assignment Input screen
+        function showAssignmentScreen(weekStart, weekNumber, dateRange) {
+            closeAllOverlays();
             
-            // Set the start date to the beginning of the *current month's* view (usually the Monday before the 1st)
-            const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+            assignmentWeekTitle.textContent = `Assignments: Week #${weekNumber} (${dateRange})`;
             
-            const day = firstDayOfMonth.getDay(); // 0 (Sun) to 6 (Sat)
-            const diff = day === 1 ? 0 : (day === 0 ? 6 : day - 1); // diff to Monday
-            const startOfView = new Date(firstDayOfMonth);
-            startOfView.setDate(firstDayOfMonth.getDate() - diff);
-            startOfView.setHours(0, 0, 0, 0); // Normalize time
+            const weekData = data[weekStart];
+            // Load existing assignment text, trimming whitespace
+            assignmentTextarea.value = (weekData && weekData.assignmentText) ? weekData.assignmentText.trim() : '';
 
+            assignmentOverlay.classList.add('visible');
+        }
+        
+        // NEW: Function to display the initial selection screen
+        function showSelectionScreen(weekStart, weekNumber, dateRange) {
+            closeAllOverlays();
             
-            // Calculate the base week number based on the START_DATE (2025-09-08, Week 1)
-            const timeDiff = startOfView.getTime() - START_DATE.getTime();
-            const daysSinceStart = Math.floor(timeDiff / (24 * 60 * 60 * 1000));
-            // Ensure division by 7 is calculated correctly for weeks
-            const baseWeekNumber = Math.max(0, Math.floor(daysSinceStart / 7)) + 1; 
-
-            // RENDER FIX: Render 6 weeks to ensure 6 boxes are always visible on desktop
-            for (let i = 0; i < 6; i++) { 
-                const weekStartDate = new Date(startOfView);
-                weekStartDate.setDate(startOfView.getDate() + i * 7);
-
-                const weekEndDate = new Date(weekStartDate);
-                weekEndDate.setDate(weekStartDate.getDate() + 6);
-
-                const weekStartString = weekStartDate.toISOString().split('T')[0];
-                const weekData = data[weekStartString] || { status: 'unmarked' };
-                
-                const weekCard = document.createElement('div');
-                weekCard.classList.add('week-card', `status-${weekData.status}`);
-                
-                const weekNumber = baseWeekNumber + i;
-
-                // Format: M/D - M/D or M/D - D
-                let dateRange;
-                const startMonth = weekStartDate.getMonth() + 1;
-                const endMonth = weekEndDate.getMonth() + 1;
-                
-                if (startMonth === endMonth) {
-                     dateRange = `${startMonth}/${weekStartDate.getDate()} - ${weekEndDate.getDate()}`;
-                } else {
-                    dateRange = `${startMonth}/${weekStartDate.getDate()} - ${endMonth}/${weekEndDate.getDate()}`;
-                }
-
-
-                weekCard.innerHTML = `
-                    <h3>Week ${weekNumber}</h3>
-                    <p>${dateRange}</p>
-                `;
-
-                weekCard.addEventListener('click', () => {
-                    currentWeekData = {
-                        weekStart: weekStartString,
-                        element: weekCard
-                    };
-                    showOverlay(weekStartString, weekNumber);
-                });
-
-                calendar.appendChild(weekCard);
-            }
+            selectionWeekTitle.textContent = `Week #${weekNumber} (${dateRange})`;
             
-            // Render the month and year
-            currentMonthYear.textContent = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-            
-            // Logic to disable prev button if we are at the earliest month
-            const isStartMonth = currentDate.getMonth() === START_DATE.getMonth() && currentDate.getFullYear() === START_DATE.getFullYear();
-            prevMonthBtn.disabled = isStartMonth;
+            // Set up dynamic event listeners for the next screens
+            addAssignmentsBtn.onclick = () => {
+                // Update currentWeekData with full info before navigating
+                currentWeekData = { weekStart, weekNumber, dateRange };
+                showAssignmentScreen(weekStart, weekNumber, dateRange);
+            };
+            logResultsBtn.onclick = () => {
+                // Update currentWeekData with full info before navigating
+                currentWeekData = { weekStart, weekNumber, dateRange };
+                showResultsScreen(weekStart, weekNumber);
+            };
 
+            selectionOverlay.classList.add('visible');
         }
 
-        function showOverlay(weekStart, weekNumber) {
-            overlayWeekTitle.textContent = `Week #${weekNumber}`;
+        // Renamed existing showOverlay to showResultsScreen (Option B)
+        function showResultsScreen(weekStart, weekNumber) {
+            closeAllOverlays();
+            
+            overlayWeekTitle.textContent = `Results: Week #${weekNumber}`;
             
             // Reset state
             statusButtons.forEach(button => button.classList.remove('active'));
@@ -784,6 +777,71 @@
 
             overlay.classList.add('visible');
         }
+        
+        function renderCalendar() {
+            console.log("Rendering calendar structure..."); // Debug log
+            calendar.innerHTML = '';
+            
+            const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+            
+            const day = firstDayOfMonth.getDay(); // 0 (Sun) to 6 (Sat)
+            const diff = day === 1 ? 0 : (day === 0 ? 6 : day - 1); // diff to Monday
+            const startOfView = new Date(firstDayOfMonth);
+            startOfView.setDate(firstDayOfMonth.getDate() - diff);
+            startOfView.setHours(0, 0, 0, 0); // Normalize time
+
+            
+            const timeDiff = startOfView.getTime() - START_DATE.getTime();
+            const daysSinceStart = Math.floor(timeDiff / (24 * 60 * 60 * 1000));
+            const baseWeekNumber = Math.max(0, Math.floor(daysSinceStart / 7)) + 1; 
+
+            for (let i = 0; i < 6; i++) { 
+                const weekStartDate = new Date(startOfView);
+                weekStartDate.setDate(startOfView.getDate() + i * 7);
+
+                const weekEndDate = new Date(weekStartDate);
+                weekEndDate.setDate(weekStartDate.getDate() + 6);
+
+                const weekStartString = weekStartDate.toISOString().split('T')[0];
+                const weekData = data[weekStartString] || { status: 'unmarked' };
+                
+                const weekCard = document.createElement('div');
+                weekCard.classList.add('week-card', `status-${weekData.status}`);
+                
+                const weekNumber = baseWeekNumber + i;
+
+                let dateRange;
+                const startMonth = weekStartDate.getMonth() + 1;
+                const endMonth = weekEndDate.getMonth() + 1;
+                
+                if (startMonth === endMonth) {
+                     dateRange = `${startMonth}/${weekStartDate.getDate()} - ${weekEndDate.getDate()}`;
+                } else {
+                    dateRange = `${startMonth}/${weekStartDate.getDate()} - ${endMonth}/${weekEndDate.getDate()}`;
+                }
+
+
+                weekCard.innerHTML = `
+                    <h3>Week ${weekNumber}</h3>
+                    <p>${dateRange}</p>
+                `;
+
+                // MODIFIED: Call the new selection screen
+                weekCard.addEventListener('click', () => {
+                    // Store minimal data for current context
+                    currentWeekData = { weekStart: weekStartString }; 
+                    showSelectionScreen(weekStartString, weekNumber, dateRange);
+                });
+
+                calendar.appendChild(weekCard);
+            }
+            
+            currentMonthYear.textContent = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            const isStartMonth = currentDate.getMonth() === START_DATE.getMonth() && currentDate.getFullYear() === START_DATE.getFullYear();
+            prevMonthBtn.disabled = isStartMonth;
+
+        }
 
         // ===================================
         // 4. EVENT LISTENERS
@@ -799,14 +857,44 @@
                 saveData();
                 
                 // Force local re-render and stat update for immediate visual feedback
-                // This addresses the reported bug where the listener delays the update for deletes.
                 updateStats(); 
                 renderCalendar();
 
                 // Close the overlay
-                overlay.classList.remove('visible');
+                closeAllOverlays();
             }
         });
+        
+        // Listener for NEW Assignment Save Button
+        saveAssignmentBtn.addEventListener('click', () => {
+            if (currentWeekData.weekStart) {
+                const weekStart = currentWeekData.weekStart;
+                const assignmentText = assignmentTextarea.value.trim();
+
+                // Ensure the week object exists, defaulting status to 'unmarked' if new
+                data[weekStart] = data[weekStart] || { status: 'unmarked' };
+                
+                if (assignmentText) {
+                    data[weekStart].assignmentText = assignmentText;
+                } else {
+                    // If text is cleared, remove the assignmentText property
+                    delete data[weekStart].assignmentText;
+                }
+                
+                // Cleanup: If the only remaining property is the default status, delete the entire week entry
+                if (Object.keys(data[weekStart]).length === 1 && data[weekStart].status === 'unmarked') {
+                    delete data[weekStart];
+                }
+
+                saveData();
+                closeAllOverlays();
+            }
+        });
+        
+        // Listeners for new close buttons
+        closeSelectionBtn.addEventListener('click', closeAllOverlays);
+        closeAssignmentBtn.addEventListener('click', closeAllOverlays);
+        closeOverlayBtn.addEventListener('click', closeAllOverlays);
 
 
         statusButtons.forEach(button => {
@@ -817,29 +905,38 @@
                 document.querySelectorAll('.btn-status').forEach(b => b.classList.remove('active'));
                 
                 if (status === 'complete') {
-                    // Show bonus stars picker and mark the button active
                     button.classList.add('active');
                     bonusStarsContainer.style.display = 'block';
-                    
-                    // FIX: Ensure all stars are unselected by default when switching to 'complete'
                     document.querySelectorAll('#bonus-stars-picker .fas.fa-star').forEach(s => s.classList.remove('active'));
-                    
-                    return; // Wait for confirmation
+                    return; 
                 }
 
-                bonusStarsContainer.style.display = 'none'; // Hide picker for non-complete statuses
+                bonusStarsContainer.style.display = 'none'; 
 
+                // Ensure the week object exists, preserving any assignmentText
+                data[currentWeekData.weekStart] = data[currentWeekData.weekStart] || { assignmentText: undefined };
+                
                 if (isAlreadyActive) {
-                    // Clicking an active button removes the status (deletes the data point)
-                    delete data[currentWeekData.weekStart];
+                    // Clicking an active button removes the status (but keeps assignmentText if present)
+                    delete data[currentWeekData.weekStart].status;
+                    delete data[currentWeekData.weekStart].bonusStars;
+                    
+                    // Cleanup: If assignmentText is also not present, delete the entire week entry
+                    if (!data[currentWeekData.weekStart].assignmentText) {
+                         delete data[currentWeekData.weekStart];
+                    } else {
+                        // Revert to 'unmarked' status if only assignmentText remains
+                        data[currentWeekData.weekStart].status = 'unmarked';
+                    }
                 } else {
-                    // For other statuses (partial, nothing-done, none), set status and save
+                    // Set new status and remove bonus stars if they were there
                     button.classList.add('active');
-                    data[currentWeekData.weekStart] = { status: status };
+                    data[currentWeekData.weekStart].status = status;
+                    delete data[currentWeekData.weekStart].bonusStars;
                 }
                 
                 saveData();
-                overlay.classList.remove('visible');
+                closeAllOverlays();
             });
         });
 
@@ -847,20 +944,19 @@
             if (currentWeekData.weekStart) {
                 const selectedBonusStarsCount = document.querySelectorAll('#bonus-stars-picker .fas.fa-star.active').length;
                 
+                // Ensure the week object exists, preserving any assignmentText
+                data[currentWeekData.weekStart] = data[currentWeekData.weekStart] || { assignmentText: undefined };
+                
                 // Set the status and the selected bonus stars
-                data[currentWeekData.weekStart] = { status: 'complete', bonusStars: selectedBonusStarsCount };
+                data[currentWeekData.weekStart].status = 'complete';
+                data[currentWeekData.weekStart].bonusStars = selectedBonusStarsCount;
                 
                 saveData();
-                overlay.classList.remove('visible');
+                closeAllOverlays();
             }
         });
 
-        closeOverlayBtn.addEventListener('click', () => {
-            overlay.classList.remove('visible');
-        });
-
         prevMonthBtn.addEventListener('click', () => {
-            // Check if we are at the start month
             const currentMonth = currentDate.getMonth();
             const startMonth = START_DATE.getMonth();
             const currentYear = currentDate.getFullYear();
@@ -883,33 +979,26 @@
         // 5. INITIALIZATION SEQUENCE
         // ===================================
         
-        // ** RENDER THE CALENDAR IMMEDIATELY **
         renderCalendar();
 
-        /**
-         * The standard function to start Firebase services, handle authentication, 
-         * and set up the user-specific, real-time data listener.
-         */
         function startFirebaseServices() {
-  try {
-    // 1. Initialize Firebase services
-    const app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    setLogLevel('Debug');
-    
-    // 2. Use one shared document (no auth)
-    trackerRef = doc(db, 'shared_tracker_yoav', 'weeks');
-    isFirebaseReady = true;
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                setLogLevel('Debug');
+                
+                // Use the unique tracker ref for Yoav
+                trackerRef = doc(db, 'shared_tracker_yoav', 'weeks');
+                isFirebaseReady = true;
 
-    // 3. Start listening for real-time updates
-    listenForData();
-    console.log("Connected to shared tracker document.");
-  } catch (error) {
-    console.error("Firebase init error:", error);
-    isFirebaseReady = false;
-    updateStats();
-  }
-}
+                listenForData();
+                console.log("Connected to shared tracker document (Yoav).");
+            } catch (error) {
+                console.error("Firebase init error:", error);
+                isFirebaseReady = false;
+                updateStats();
+            }
+        }
         
         startFirebaseServices();
 
